@@ -1262,16 +1262,20 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, ".\n"); CHKERRQ(ierr);
 	}
 
-	ierr = VecDuplicate(gi.vecTemp, &inverse); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &inverse); CHKERRQ(ierr); // changed
+	ierr = DMCreateGlobalVector(gi.da, &inverse); CHKERRQ(ierr);
 
 	/** Create input vectors. */
-	ierr = createVecPETSc(&eps, "eps", gi); CHKERRQ(ierr);
+	// ierr = createVecPETSc(&eps, "eps", gi); CHKERRQ(ierr);
+
+	ierr = DMCreateGlobalVector(gi.da, &eps); CHKERRQ(ierr);
 	ierr = updateTimeStamp(VBDetail, ts, "eps vector", gi); CHKERRQ(ierr);
 
 	if (gi.has_mu) {
 		ierr = createVecPETSc(&mu, "mu", gi); CHKERRQ(ierr);
 	} else {
-		ierr = VecDuplicate(gi.vecTemp, &mu); CHKERRQ(ierr);
+		// ierr = VecDuplicate(gi.vecTemp, &mu); CHKERRQ(ierr); // changed
+		ierr = DMCreateGlobalVector(gi.da, &mu); CHKERRQ(ierr);
 		ierr = VecSet(mu, 1.0); CHKERRQ(ierr);
 	}
 	ierr = updateTimeStamp(VBDetail, ts, "mu vector", gi); CHKERRQ(ierr);
@@ -1309,10 +1313,15 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = updateTimeStamp(VBDetail, ts, "CH matrix", gi); CHKERRQ(ierr);
 
 	/** Set up the matrix CF, the operator giving G fields from F fields. */
-	ierr = VecDuplicate(gi.vecTemp, &param); CHKERRQ(ierr);
-	ierr = VecDuplicate(gi.vecTemp, &paramMask); CHKERRQ(ierr);
-	ierr = VecDuplicate(gi.vecTemp, conjParam); CHKERRQ(ierr);
-	ierr = VecDuplicate(gi.vecTemp, conjSrc); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &param); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &paramMask); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, conjParam); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, conjSrc); CHKERRQ(ierr);
+
+	ierr = DMCreateGlobalVector(gi.da, &param); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &paramMask); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, conjParam); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, conjSrc); CHKERRQ(ierr);
 	if (gi.x_type == Etype) {
 		ierr = VecCopy(eps, param); CHKERRQ(ierr);
 		ierr = VecCopy(mu, *conjParam); CHKERRQ(ierr);
@@ -1352,7 +1361,8 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = updateTimeStamp(VBDetail, ts, "CGF matrix", gi); CHKERRQ(ierr);
 
 	/** Create b. */
-	ierr = VecDuplicate(gi.vecTemp, b); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, b); CHKERRQ(ierr); //changed
+	ierr = DMCreateGlobalVector(gi.da, b); CHKERRQ(ierr);
 	if (gi.x_type == Etype) {
 		ierr = VecCopy(srcJ, *b); CHKERRQ(ierr);
 		ierr = VecScale(*b, PETSC_i*gi.omega); CHKERRQ(ierr);
@@ -1391,7 +1401,8 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 		/** Create b. */
 		Vec b_aug;
-		ierr = VecDuplicate(gi.vecTemp, &b_aug); CHKERRQ(ierr);
+		// ierr = VecDuplicate(gi.vecTemp, &b_aug); CHKERRQ(ierr);
+		ierr = DMCreateGlobalVector(gi.da, &b_aug); CHKERRQ(ierr);
 		if (gi.x_type == Etype) {
 			ierr = VecCopy(srcJ, b_aug); CHKERRQ(ierr);  // b_aug = J
 		} else {
@@ -1420,11 +1431,13 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 	/** Create the left and right preconditioner. */
 	/** Set the left preconditioner. */
-	ierr = VecDuplicate(gi.vecTemp, &left_precond); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &left_precond); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &left_precond); CHKERRQ(ierr);
 	ierr = VecSet(left_precond, 1.0); CHKERRQ(ierr);
 
 	/** Set the right preconditioner. */
-	ierr = VecDuplicate(gi.vecTemp, right_precond); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, right_precond); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, right_precond); CHKERRQ(ierr);
 	ierr = VecSet(*right_precond, 1.0); CHKERRQ(ierr);
 
 	if (gi.is_symmetric) {  // currently, is_symmetric only works for x_type == Etype
@@ -1476,7 +1489,9 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 			ierr = VecPointwiseDivide(*right_precond, *right_precond, sfactorL); CHKERRQ(ierr);
 		} else {  // diag(sqrt(sfactorL/sfactorS)) Aupml diag(sqrt(sfactorL/sfactorS))
 			Vec sqrtLoverS;
-			ierr = VecDuplicate(gi.vecTemp, &sqrtLoverS); CHKERRQ(ierr);
+			// ierr = VecDuplicate(gi.vecTemp, &sqrtLoverS); CHKERRQ(ierr);
+
+			ierr = DMCreateGlobalVector(gi.da, &sqrtLoverS); CHKERRQ(ierr);
 			ierr = VecPointwiseDivide(sqrtLoverS, sfactorL, sfactorS); CHKERRQ(ierr);
 			ierr = sqrtVec(sqrtLoverS, gi); CHKERRQ(ierr);
 			ierr = VecPointwiseDivide(left_precond, left_precond, sqrtLoverS); CHKERRQ(ierr);
@@ -1495,7 +1510,8 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 			if (gi.has_mu) {
 				ierr = createVecHDF5(&precond, "/mu", gi); CHKERRQ(ierr);
 			} else {
-				ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
+				// ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
+				ierr = DMCreateGlobalVector(gi.da, &precond); CHKERRQ(ierr);
 				ierr = VecSet(precond, 1.0); CHKERRQ(ierr);
 			}
 		}
@@ -1509,7 +1525,8 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = VecDestroy(&precond); CHKERRQ(ierr);
 		ierr = updateTimeStamp(VBDetail, ts, "eps preconditioner", gi); CHKERRQ(ierr);
 	} else if (gi.pc_type == PCJacobi) {
-		ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
+		// ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
+		ierr = DMCreateGlobalVector(gi.da, &precond); CHKERRQ(ierr);
 		ierr = MatGetDiagonal(*A, precond); CHKERRQ(ierr);
 		if (!gi.is_symmetric) {
 			ierr = VecPointwiseMult(left_precond, left_precond, precond); CHKERRQ(ierr);
@@ -1525,11 +1542,13 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	}
 
 	Vec inv_left, inv_right; 
-	ierr = VecDuplicate(gi.vecTemp, &inv_left); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &inv_left); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &inv_left); CHKERRQ(ierr);
 	ierr = VecSet(inv_left, 1.0); CHKERRQ(ierr);
 	ierr = VecPointwiseDivide(inv_left, inv_left, left_precond); CHKERRQ(ierr);
 
-	ierr = VecDuplicate(gi.vecTemp, &inv_right); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &inv_right); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &inv_right); CHKERRQ(ierr);
 	ierr = VecSet(inv_right, 1.0); CHKERRQ(ierr);
 	ierr = VecPointwiseDivide(inv_right, inv_right, *right_precond); CHKERRQ(ierr);
 

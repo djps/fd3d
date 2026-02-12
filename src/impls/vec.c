@@ -16,7 +16,12 @@ PetscErrorCode createVecPETSc(Vec *vec, const char *dataset_name, GridInfo gi)
 	ierr = PetscStrcat(fieldfile_name, dataset_name); CHKERRQ(ierr);
 	//ierr = PetscStrcat(fieldfile_name, ".gz"); CHKERRQ(ierr);
 	ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, fieldfile_name, FILE_MODE_READ, &viewer); CHKERRQ(ierr);
-	ierr = VecDuplicate(gi.vecTemp, vec); CHKERRQ(ierr);
+	
+	// changed
+	// ierr = VecDuplicate(gi.vecTemp, vec); CHKERRQ(ierr);
+
+	ierr = DMCreateGlobalVector(gi.da, vec); CHKERRQ(ierr);
+
 	//ierr = VecCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
 	ierr = VecLoad(*vec, viewer); CHKERRQ(ierr);
 	ierr = PetscViewerDestroy(&viewer); CHKERRQ(ierr);
