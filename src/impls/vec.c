@@ -87,7 +87,10 @@ PetscErrorCode createFieldArray(Vec *field, FunctionSetComponentAt setComponentA
 	PetscFunctionBegin;
 	PetscErrorCode ierr;
 
-	ierr = VecDuplicate(gi.vecTemp, field); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, field); CHKERRQ(ierr);
+	// CHANGED: Create vector directly from DMDA instead of duplicating vecTemp
+	ierr = DMCreateGlobalVector(gi.da, field); CHKERRQ(ierr);
+
 	ierr = setFieldArray(*field, setComponentAt, gi); CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);

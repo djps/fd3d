@@ -104,7 +104,7 @@ PetscErrorCode main(int argc, char **argv)
 
 	GridInfo gi;
 	PetscBool flg;
-	ierr = PetscOptionsGetString(PETSC_NULL, "-i", gi.input_name, PETSC_MAX_PATH_LEN-1, &flg); CHKERRQ(ierr);
+	ierr = PetscOptionsGetString(NULL, PETSC_NULL, "-i", gi.input_name, PETSC_MAX_PATH_LEN-1, &flg); CHKERRQ(ierr);
 	if (!flg) {
 		ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, help); CHKERRQ(ierr);
 		PetscFunctionReturn(0);
@@ -120,7 +120,7 @@ PetscErrorCode main(int argc, char **argv)
 	const char *h5_ext = ".h5";
 	ierr = PetscStrcpy(gi.inputfile_name, gi.input_name); CHKERRQ(ierr);
 	ierr = PetscStrcat(gi.inputfile_name, h5_ext); CHKERRQ(ierr);
-	ierr = PetscOptionsGetString(PETSC_NULL, "-o", gi.output_name, PETSC_MAX_PATH_LEN-1, &flg); CHKERRQ(ierr);
+	ierr = PetscOptionsGetString(NULL, PETSC_NULL, "-o", gi.output_name, PETSC_MAX_PATH_LEN-1, &flg); CHKERRQ(ierr);
 	if (!flg) {
 		ierr = PetscStrcpy(gi.output_name, gi.input_name); CHKERRQ(ierr);
 	}

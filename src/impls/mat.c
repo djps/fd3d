@@ -97,7 +97,7 @@ PetscErrorCode setDp(Mat A, Sign s, Axis w, PetscInt i, PetscInt j, PetscInt k, 
 	  so inserting dFp[1] after dFp[0] overwrites dFp[0], which is not what we want.  
 	  On the other hand, if we add dFp[1] to dFp[0], it is equivalent to insert 
 	  -scale/dv + scale/dv = 0.0, and this is what should be done. */
-	ierr = MatSetValuesStencil(A, 1, &indGw, num_dFp, indFp, dFp, ADD_VALUES); CHKERRQ(ierr);  // Gw <-- scale * (d/dv)Fp
+	ierr = MatSetValuesStencil(A, 1, &indGw, num_dFp, indFp, dFp, ADD_VALUES); CHKERRQ(ierr);  // Gw <-- scale * (d/dv)Fp /** */
 
 	PetscFunctionReturn(0);
 }
@@ -362,7 +362,7 @@ PetscErrorCode setCF(Mat CF, GridType gtype, GridInfo gi)
 					Axis h = (Axis)((axis+1) % Naxis);  // horizontal axis
 					Axis v = (Axis)((axis+2) % Naxis);  // vertical axis
 
-					ierr = setDp(CF, s, n, i, j, k, v, h, 1.0, gi); CHKERRQ(ierr);
+					ierr = setDp(CF, s, n, i, j, k, v, h, 1.0, gi); CHKERRQ(ierr); /** breaks */
 					ierr = setDp(CF, s, n, i, j, k, h, v, -1.0, gi); CHKERRQ(ierr);
 				}
 			}
@@ -392,7 +392,7 @@ PetscErrorCode createCE(Mat *CE, GridInfo gi)
 		ierr = createFieldArray(&maskE, set_mask_dual_at, gi);
 		ierr = createFieldArray(&maskH, set_mask_prim_at, gi);
 	}
-
+/*
 	ierr = MatCreate(PETSC_COMM_WORLD, CE); CHKERRQ(ierr);
 	ierr = MatSetSizes(*CE, gi.Nlocal_tot, gi.Nlocal_tot, PETSC_DETERMINE, PETSC_DETERMINE); CHKERRQ(ierr);
 	ierr = MatSetType(*CE, MATRIX_TYPE); CHKERRQ(ierr);
@@ -401,11 +401,23 @@ PetscErrorCode createCE(Mat *CE, GridInfo gi)
 	ierr = MatSeqAIJSetPreallocation(*CE, 4, PETSC_NULL); CHKERRQ(ierr);
 	ierr = MatSetLocalToGlobalMapping(*CE, gi.map, gi.map); CHKERRQ(ierr);
 	ierr = MatSetStencil(*CE, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
+	ierr = setCF(*CE, gi.ge, gi); CHKERRQ(ierr); // breaks 
+	ierr = MatAssemblyBegin(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+	ierr = MatAssemblyEnd(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+	ierr = MatDiagonalScale(*CE, maskH, maskE); CHKERRQ(ierr);
+*/
+	// Replace all MatCreate setup with DMCreateMatrix
+	ierr = DMCreateMatrix(gi.da, CE); CHKERRQ(ierr);
+	ierr = MatSetStencil(*CE, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
 	ierr = setCF(*CE, gi.ge, gi); CHKERRQ(ierr);
 	ierr = MatAssemblyBegin(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
 	ierr = MatDiagonalScale(*CE, maskH, maskE); CHKERRQ(ierr);
+
+	ierr = VecDestroy(&maskE); CHKERRQ(ierr);
+	ierr = VecDestroy(&maskH); CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);
 }
@@ -430,7 +442,7 @@ PetscErrorCode createCH(Mat *CH, GridInfo gi)
 		ierr = createFieldArray(&maskE, set_mask_dual_at, gi);
 		ierr = createFieldArray(&maskH, set_mask_prim_at, gi);
 	}
-
+/*
 	ierr = MatCreate(PETSC_COMM_WORLD, CH); CHKERRQ(ierr);
 	ierr = MatSetSizes(*CH, gi.Nlocal_tot, gi.Nlocal_tot, PETSC_DETERMINE, PETSC_DETERMINE); CHKERRQ(ierr);
 	ierr = MatSetType(*CH, MATRIX_TYPE); CHKERRQ(ierr);
@@ -444,6 +456,18 @@ PetscErrorCode createCH(Mat *CH, GridInfo gi)
 	ierr = MatAssemblyEnd(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
 	ierr = MatDiagonalScale(*CH, maskE, maskH); CHKERRQ(ierr);
+*/
+	// Replace all MatCreate setup with DMCreateMatrix
+	ierr = DMCreateMatrix(gi.da, CH); CHKERRQ(ierr);
+	ierr = MatSetStencil(*CH, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
+	ierr = setCF(*CH, (GridType)((gi.ge+1) % Ngt), gi); CHKERRQ(ierr); // copied 
+	ierr = MatAssemblyBegin(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+	ierr = MatAssemblyEnd(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
+
+	ierr = MatDiagonalScale(*CH, maskH, maskE); CHKERRQ(ierr);
+
+	ierr = VecDestroy(&maskE); CHKERRQ(ierr);
+	ierr = VecDestroy(&maskH); CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);
 }
@@ -1276,10 +1300,12 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 	/** Set up the matrix CE, the curl operator on E fields. */
 	ierr = createCE(&CE, gi); CHKERRQ(ierr);
+	ierr = MatSetUp(CE); CHKERRQ(ierr);  // added djps
 	ierr = updateTimeStamp(VBDetail, ts, "CE matrix", gi); CHKERRQ(ierr);
 
 	/** Set up the matrix CH, the curl operator on H fields. */
 	ierr = createCH(&CH, gi); CHKERRQ(ierr);
+	ierr = MatSetUp(CH); CHKERRQ(ierr);  // added djps
 	ierr = updateTimeStamp(VBDetail, ts, "CH matrix", gi); CHKERRQ(ierr);
 
 	/** Set up the matrix CF, the operator giving G fields from F fields. */
@@ -1307,7 +1333,13 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = VecSet(inverse, 1.0); CHKERRQ(ierr);
 		ierr = VecPointwiseDivide(inverse, inverse, eps); CHKERRQ(ierr);
 	}
-	ierr = MatDiagonalScale(CG, PETSC_NULL, inverse); CHKERRQ(ierr);
+
+	PetscInt matRows, matCols, vecSize;
+	ierr = MatGetSize(CG, &matRows, &matCols); CHKERRQ(ierr);
+	ierr = VecGetSize(inverse, &vecSize); CHKERRQ(ierr);
+	ierr = PetscPrintf(PETSC_COMM_WORLD, "Matrix: %d x %d, Vector: %d\n", matRows, matCols, vecSize); CHKERRQ(ierr);
+
+	ierr = MatDiagonalScale(CG, PETSC_NULL, inverse); CHKERRQ(ierr); // breaks?
 	ierr = updateTimeStamp(VBDetail, ts, "CG matrix", gi); CHKERRQ(ierr);
 
 	ierr = VecCopy(param, paramMask); CHKERRQ(ierr);
@@ -1316,6 +1348,7 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 	/** Create the matrix CGF, the curl(mu^-1 curl) operator or curl(eps^-1 curl). */
 	ierr = createCGF(&CGF, CG, *CF, gi); CHKERRQ(ierr);
+	ierr = MatSetUp(CGF); CHKERRQ(ierr);  // added djps
 	ierr = updateTimeStamp(VBDetail, ts, "CGF matrix", gi); CHKERRQ(ierr);
 
 	/** Create b. */
@@ -1345,12 +1378,14 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		*A = CGF;
 	} else {  // currently, add_conteq only works for x_type == Etype
 		ierr = createAtemplate(A, gi); CHKERRQ(ierr);
+		ierr = MatSetUp(*A); CHKERRQ(ierr); // djps
 		ierr = MatAXPY(*A, 1.0, CGF, SUBSET_NONZERO_PATTERN); CHKERRQ(ierr);
 		ierr = MatDestroy(&CGF); CHKERRQ(ierr);
 
 		/** Create the gradient-divergence operator. */
 		Mat GD;
 		ierr = createGDsym(&GD, gi); CHKERRQ(ierr);
+		ierr = MatSetUp(GD); CHKERRQ(ierr); // added djps
 		ierr = MatDiagonalScale(GD, param, PETSC_NULL); CHKERRQ(ierr);
 		ierr = updateTimeStamp(VBDetail, ts, "GD matrix", gi); CHKERRQ(ierr);
 

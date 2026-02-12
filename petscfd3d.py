@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # using gfortran from http://gcc.gnu.org/wiki/GFortranBinariesMacOS on Mac OSX 10.4
 

@@ -146,6 +146,9 @@ ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "\tN = [%d, %d, %d]\n", gi->N[Xx],
 	  structure of this. */
 	ierr = DMCreateGlobalVector(gi->da, &gi->vecTemp); CHKERRQ(ierr);
 
+	/** Add a setup */
+	ierr = DMSetUp(gi->da); CHKERRQ(ierr);
+
 	/** Get local-to-global mapping from DA. */
 	ierr = DMGetLocalToGlobalMapping(gi->da, &gi->map); CHKERRQ(ierr);
 
@@ -260,21 +263,21 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** maxit */
 	opt_name = "-fd3d_maxit";
-	ierr = PetscOptionsGetInt(PETSC_NULL, opt_name, &opt_int, &has_opt_val); CHKERRQ(ierr);
+	ierr = PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, opt_name, &opt_int, &has_opt_val); CHKERRQ(ierr);
 	if (has_opt_val) {
 		gi->max_iter = opt_int;
 	}
 
 	/** tol */
 	opt_name = "-fd3d_tol";
-	ierr = PetscOptionsGetReal(PETSC_NULL, opt_name, &opt_real, &has_opt_val); CHKERRQ(ierr);
+	ierr = PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, opt_name, &opt_real, &has_opt_val); CHKERRQ(ierr);
 	if (has_opt_val) {
 		gi->tol = opt_real;
 	}
 
 	/** Field type */
 	opt_name = "-fd3d_x_type";
-	ierr = PetscOptionsGetString(PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
+	ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
 	if (has_opt) {
 		if (!(ierr = PetscStrcasecmp(opt_str, "E", &is_target_value)) && is_target_value) {
 			CHKERRQ(ierr);
@@ -289,7 +292,7 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** F0 type */
 	opt_name = "-fd3d_x0_type";
-	ierr = PetscOptionsGetString(PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
+	ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
 	if (has_opt) {
 		if (!(ierr = PetscStrcasecmp(opt_str, "zero", &is_target_value)) && is_target_value) {
 			CHKERRQ(ierr);
@@ -307,7 +310,7 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** PML type */
 	opt_name = "-fd3d_pml";
-	ierr = PetscOptionsGetString(PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
+	ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
 	if (has_opt) {
 		if (!(ierr = PetscStrcasecmp(opt_str, "scpml", &is_target_value)) && is_target_value) {
 			CHKERRQ(ierr);
@@ -322,7 +325,7 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** Preconditioner type */
 	opt_name = "-fd3d_pc";
-	ierr = PetscOptionsGetString(PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
+	ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
 	if (has_opt) {
 		if (!(ierr = PetscStrcasecmp(opt_str, "sfactor", &is_target_value)) && is_target_value) {
 			CHKERRQ(ierr);
@@ -343,14 +346,14 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** Symmetry */
 	opt_name = "-fd3d_symmetric";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->is_symmetric); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->is_symmetric); CHKERRQ(ierr);
 
 	/** Addtion of the continuity equation */
 	opt_name = "-fd3d_add_conteq";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->add_conteq); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->add_conteq); CHKERRQ(ierr);
 	if (gi->add_conteq) {
 		PetscBool has_opt_val;
-		ierr = PetscOptionsGetReal(PETSC_NULL, opt_name, &gi->factor_conteq, &has_opt_val); CHKERRQ(ierr);
+		ierr = PetscOptionsGetReal(PETSC_NULL, PETSC_NULL, opt_name, &gi->factor_conteq, &has_opt_val); CHKERRQ(ierr);
 		if (!has_opt_val) {
 			gi->factor_conteq = -1.0;
 		}
@@ -358,9 +361,9 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** Iterative solution snapshot interval */
 	opt_name = "-fd3d_take_snapshots";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &has_opt); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &has_opt); CHKERRQ(ierr);
 	if (has_opt) {
-		ierr = PetscOptionsGetInt(PETSC_NULL, opt_name, (PetscInt*) &gi->snapshot_interval, &has_opt_val); CHKERRQ(ierr);
+		ierr = PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, opt_name, (PetscInt*) &gi->snapshot_interval, &has_opt_val); CHKERRQ(ierr);
 		if (!has_opt_val) {
 			gi->snapshot_interval = 1;
 		}
@@ -368,15 +371,15 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** Output A and b */
 	opt_name = "-fd3d_output_mat_and_vec";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->output_mat_and_vec); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->output_mat_and_vec); CHKERRQ(ierr);
 
 	/** KSP */
 	opt_name = "-fd3d_use_ksp";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->use_ksp); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->use_ksp); CHKERRQ(ierr);
 
 	/** Krylove subspace method */
 	opt_name = "-fd3d_krylov";
-	ierr = PetscOptionsGetString(PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
+	ierr = PetscOptionsGetString(PETSC_NULL, PETSC_NULL, opt_name, opt_str, PETSC_MAX_PATH_LEN-1, &has_opt); CHKERRQ(ierr);  
 	if (has_opt) {
 		if (!(ierr = PetscStrcasecmp(opt_str, "bicg", &is_target_value)) && is_target_value) {
 			CHKERRQ(ierr);
@@ -391,22 +394,22 @@ PetscErrorCode setOptions(GridInfo *gi)
 
 	/** Eigensolver */
 	opt_name = "-fd3d_eigen";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->solve_eigen); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->solve_eigen); CHKERRQ(ierr);
 
 	/** Singular value */
 	opt_name = "-fd3d_singular";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->solve_singular); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->solve_singular); CHKERRQ(ierr);
 
 	/** Verbose level */
 	opt_name = "-fd3d_verbose";
-	ierr = PetscOptionsGetInt(PETSC_NULL, opt_name, (PetscInt*) &gi->verbose_level, &has_opt_val); CHKERRQ(ierr);
+	ierr = PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, opt_name, (PetscInt*) &gi->verbose_level, &has_opt_val); CHKERRQ(ierr);
 	if (!has_opt_val) {
 		gi->verbose_level = VBDetail;
 	}
 
 	/** Output the norms of relative residual vectors */
 	opt_name = "-fd3d_output_relres";
-	ierr = PetscOptionsHasName(PETSC_NULL, opt_name, &gi->output_relres); CHKERRQ(ierr);
+	ierr = PetscOptionsHasName(PETSC_NULL, PETSC_NULL, opt_name, &gi->output_relres); CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);
 }
