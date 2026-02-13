@@ -9,6 +9,10 @@ bin/fd3d
 # Test/output files
 test/*.E.h5
 test/*.H.h5
+test/*.E.h5
+test/*.srcJ
+test/*.srcM
+test/*.eps
 
 # Editor files
 *~
