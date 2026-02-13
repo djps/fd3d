@@ -66,4 +66,4 @@ The general workflow to simulate EM wave propagation is as follows.
 
 6. Examine the solution.
 
-	The solution of the frequency-domain Maxwell's equations is stored in `INPUT_NAME.E.h5` and `INPUT_NAME.H.h5` files, which contain the E- and H-field of the solution, respectively.  The solution in these files can be visualized in MaxwellFDFD.  See the MaxwellFDFD documentation for more details.
+	The solution of the frequency-domain Maxwell's equations is stored in `INPUT_NAME.E.h5` and `INPUT_NAME.H.h5` files, which contain the $E$- and $H$-field of the solution, respectively.  The solution in these files can be visualized in MaxwellFDFD.  See the MaxwellFDFD documentation for more details.
