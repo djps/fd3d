@@ -4,3 +4,5 @@ TODO
 *.swp
 *.pyc
 .DS_Store
+test/*.E.h5
+test/*.H.h5
