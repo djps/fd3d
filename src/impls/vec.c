@@ -17,9 +17,7 @@ PetscErrorCode createVecPETSc(Vec *vec, const char *dataset_name, GridInfo gi)
 	//ierr = PetscStrcat(fieldfile_name, ".gz"); CHKERRQ(ierr);
 	ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, fieldfile_name, FILE_MODE_READ, &viewer); CHKERRQ(ierr);
 	
-	// changed
 	// ierr = VecDuplicate(gi.vecTemp, vec); CHKERRQ(ierr);
-
 	ierr = DMCreateGlobalVector(gi.da, vec); CHKERRQ(ierr);
 
 	//ierr = VecCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
@@ -40,7 +38,9 @@ PetscErrorCode createVecHDF5(Vec *vec, const char *dataset_name, GridInfo gi)
 	ierr = PetscViewerHDF5Open(PETSC_COMM_WORLD, gi.inputfile_name, FILE_MODE_READ, &viewer); CHKERRQ(ierr);
 	ierr = PetscViewerHDF5PushGroup(viewer, "/"); CHKERRQ(ierr);  // assume that all datasets are under "/".
 
-	ierr = VecDuplicate(gi.vecTemp, vec); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, vec); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, vec); CHKERRQ(ierr);
+
 	ierr = PetscObjectSetName((PetscObject) *vec, ++dataset_name); CHKERRQ(ierr);  // ++ to remove '/'
 	ierr = VecLoad(*vec, viewer); CHKERRQ(ierr);
 	ierr = PetscViewerHDF5PopGroup(viewer); CHKERRQ(ierr);

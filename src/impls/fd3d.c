@@ -63,6 +63,60 @@ PetscErrorCode cleanup(Mat A, Vec b, Vec right_precond, Mat CF, Vec conjParam, V
 	PetscFunctionReturn(0);
 }
 
+
+
+#undef __FUNCT__
+#define __FUNCT__ "checkVecDMCompatibility"
+PetscErrorCode checkVecDMCompatibility(GridInfo gi)
+{
+    PetscFunctionBegin;
+    PetscErrorCode ierr;
+    
+    // Create test vector from DMDA
+    Vec testVec;
+    ierr = DMCreateGlobalVector(gi.da, &testVec); CHKERRQ(ierr);
+    
+    // Compare sizes
+    PetscInt size_temp, size_test;
+    PetscInt local_temp, local_test;
+    
+    ierr = VecGetSize(gi.vecTemp, &size_temp); CHKERRQ(ierr); // this breaks
+    ierr = VecGetSize(testVec, &size_test); CHKERRQ(ierr);
+    
+    ierr = VecGetLocalSize(gi.vecTemp, &local_temp); CHKERRQ(ierr);
+    ierr = VecGetLocalSize(testVec, &local_test); CHKERRQ(ierr);
+    
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "=== Vector Compatibility Check ===\n"); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "gi.vecTemp:  global=%d, local=%d\n", size_temp, local_temp); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "DM vector:   global=%d, local=%d\n", size_test, local_test); CHKERRQ(ierr);
+    
+    if (size_temp == size_test && local_temp == local_test) {
+        ierr = PetscPrintf(PETSC_COMM_WORLD, "✓ Sizes MATCH - compatible!\n"); CHKERRQ(ierr);
+    } else {
+        ierr = PetscPrintf(PETSC_COMM_WORLD, "✗ Sizes MISMATCH - incompatible!\n"); CHKERRQ(ierr);
+    }
+    ierr = PetscPrintf(PETSC_COMM_WORLD, "==================================\n"); CHKERRQ(ierr);
+    
+    ierr = VecDestroy(&testVec); CHKERRQ(ierr);
+    
+    PetscFunctionReturn(0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 static char help[] = "Usage: <job launcher with # of proc (ex. mpirun -np 4)> ./fd3d -i <input file> [-o <output file>]\n\
 					  File names should be written without file name extensions.\n";
 
@@ -132,6 +186,7 @@ PetscErrorCode main(int argc, char **argv)
 
 	/** Set FD3D options in GridInfo. */
 	ierr = setOptions(&gi); CHKERRQ(ierr);
+//	ierr = checkVecDMCompatibility(gi); CHKERRQ(ierr);
 
 	Mat A, CF;
 	Vec b, right_precond, conjParam, conjSrc;
@@ -156,11 +211,19 @@ PetscErrorCode main(int argc, char **argv)
 	 */
 	Vec x;  // actually y in the above equation
 	if (gi.x0_type == GEN_GIVEN) {
+		// ierr = PetscPrintf(PETSC_COMM_WORLD, "✓ gi.x0_type == GEN_GIVEN\n"); CHKERRQ(ierr);
 		ierr = createVecPETSc(&x, "F0", gi); CHKERRQ(ierr);
 		ierr = VecPointwiseMult(x, x, right_precond); CHKERRQ(ierr);
 		ierr = updateTimeStamp(VBDetail, &ts, "supplied x0 initialization", gi); CHKERRQ(ierr);
 	} else {  // in this case, not preconditioning x is better
-		ierr = VecDuplicate(gi.vecTemp, &x); CHKERRQ(ierr);
+		
+		// ierr = VecDuplicate(gi.vecTemp, &x); CHKERRQ(ierr);
+		ierr = DMCreateGlobalVector(gi.da, &x); CHKERRQ(ierr);
+		
+		// ierr = PetscPrintf(PETSC_COMM_WORLD, "✗  gi.x0_type == GEN_GIVEN\n"); CHKERRQ(ierr);
+
+		// ierr = checkVecDMCompatibility(gi); CHKERRQ(ierr);
+
 		if (gi.x0_type == GEN_ZERO) {
 			ierr = VecSet(x, 0.0); CHKERRQ(ierr);
 			ierr = updateTimeStamp(VBDetail, &ts, "zero x0 initialization", gi); CHKERRQ(ierr);
@@ -177,6 +240,9 @@ PetscErrorCode main(int argc, char **argv)
 		ierr = VecScale(x, PETSC_i/gi.omega); CHKERRQ(ierr);
 */
 	}
+
+
+
 	//ierr = VecCopy(e0, x); CHKERRQ(ierr);
 	//ierr = VecCopy(epsE0, x); CHKERRQ(ierr);
 	//A = GD;
@@ -254,7 +320,10 @@ PetscErrorCode main(int argc, char **argv)
 
 		PetscReal norm_b;
 		Vec b_precond;
-		ierr = VecDuplicate(gi.vecTemp, &b_precond); CHKERRQ(ierr);
+
+		// ierr = VecDuplicate(gi.vecTemp, &b_precond); CHKERRQ(ierr);
+		ierr = DMCreateGlobalVector(gi.da, &b_precond); CHKERRQ(ierr);
+
 		ierr = PCApply(pc, b, b_precond); CHKERRQ(ierr);  // for KSP_NORM_PRECONDITIONED above
 		ierr = VecNorm(b_precond, NORM_2, &norm_b); CHKERRQ(ierr);
 		ierr = VecDestroy(&b_precond); CHKERRQ(ierr);
@@ -305,10 +374,15 @@ PetscErrorCode main(int argc, char **argv)
 			//ierr = MatTranspose(A, MAT_INITIAL_MATRIX, &Adag); CHKERRQ(ierr);
 
 			Vec x1, x2, b1, b2;
-			ierr = VecDuplicate(gi.vecTemp, &x1); CHKERRQ(ierr);
-			ierr = VecDuplicate(gi.vecTemp, &x2); CHKERRQ(ierr);
-			ierr = VecDuplicate(gi.vecTemp, &b1); CHKERRQ(ierr);
-			ierr = VecDuplicate(gi.vecTemp, &b2); CHKERRQ(ierr);
+
+			// ierr = VecDuplicate(gi.vecTemp, &x1); CHKERRQ(ierr);
+			// ierr = VecDuplicate(gi.vecTemp, &x2); CHKERRQ(ierr);
+			// ierr = VecDuplicate(gi.vecTemp, &b1); CHKERRQ(ierr);
+			// ierr = VecDuplicate(gi.vecTemp, &b2); CHKERRQ(ierr);
+			ierr = DMCreateGlobalVector(gi.da, &x1); CHKERRQ(ierr);
+			ierr = DMCreateGlobalVector(gi.da, &x2); CHKERRQ(ierr);
+			ierr = DMCreateGlobalVector(gi.da, &b1); CHKERRQ(ierr);
+			ierr = DMCreateGlobalVector(gi.da, &b2); CHKERRQ(ierr);
 
 			PetscReal smin_inv, smax, sprev;
 			ierr = VecSetRandom(b1, PETSC_NULL); CHKERRQ(ierr);

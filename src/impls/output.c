@@ -34,7 +34,9 @@ PetscErrorCode output(char *output_name, const Vec x, const Mat CF, const Vec co
 	ierr = PetscStrcat(e_file, e_extension); CHKERRQ(ierr);
 
 	Vec y;  // H field vector if x_type == Etype
-	ierr = VecDuplicate(gi.vecTemp, &y); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &y); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &y); CHKERRQ(ierr);
+
 	ierr = VecCopy(conjSrc, y); CHKERRQ(ierr);
 	if (gi.x_type==Etype) {
 		ierr = MatMultAdd(CF, x, y, y); CHKERRQ(ierr);

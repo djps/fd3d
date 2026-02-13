@@ -364,7 +364,7 @@ PetscErrorCode setCF(Mat CF, GridType gtype, GridInfo gi)
 					Axis h = (Axis)((axis+1) % Naxis);  // horizontal axis
 					Axis v = (Axis)((axis+2) % Naxis);  // vertical axis
 
-					ierr = setDp(CF, s, n, i, j, k, v, h, 1.0, gi); CHKERRQ(ierr); /** breaks */
+					ierr = setDp(CF, s, n, i, j, k, v, h, 1.0, gi); CHKERRQ(ierr); 
 					ierr = setDp(CF, s, n, i, j, k, h, v, -1.0, gi); CHKERRQ(ierr);
 				}
 			}
@@ -394,6 +394,9 @@ PetscErrorCode createCE(Mat *CE, GridInfo gi)
 		ierr = createFieldArray(&maskE, set_mask_dual_at, gi);
 		ierr = createFieldArray(&maskH, set_mask_prim_at, gi);
 	}
+
+	// Replace all MatCreate setup with DMCreateMatrix
+	// ierr = DMCreateMatrix(gi.da, CE); CHKERRQ(ierr); 
 /*
 	ierr = MatCreate(PETSC_COMM_WORLD, CE); CHKERRQ(ierr);
 	ierr = MatSetSizes(*CE, gi.Nlocal_tot, gi.Nlocal_tot, PETSC_DETERMINE, PETSC_DETERMINE); CHKERRQ(ierr);
@@ -402,20 +405,13 @@ PetscErrorCode createCE(Mat *CE, GridInfo gi)
 	ierr = MatMPIAIJSetPreallocation(*CE, 4, PETSC_NULL, 2, PETSC_NULL); CHKERRQ(ierr);
 	ierr = MatSeqAIJSetPreallocation(*CE, 4, PETSC_NULL); CHKERRQ(ierr);
 	ierr = MatSetLocalToGlobalMapping(*CE, gi.map, gi.map); CHKERRQ(ierr);
+	std::cout << gi.Nlocal_g << std::endl;
 	ierr = MatSetStencil(*CE, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
+*/
+	ierr = DMCreateMatrix(gi.da, CE); CHKERRQ(ierr); 
 	ierr = setCF(*CE, gi.ge, gi); CHKERRQ(ierr); // breaks 
 	ierr = MatAssemblyBegin(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
-	ierr = MatDiagonalScale(*CE, maskH, maskE); CHKERRQ(ierr);
-*/
-	// Replace all MatCreate setup with DMCreateMatrix
-	ierr = DMCreateMatrix(gi.da, CE); CHKERRQ(ierr);
-	ierr = MatSetStencil(*CE, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
-	ierr = setCF(*CE, gi.ge, gi); CHKERRQ(ierr);
-	ierr = MatAssemblyBegin(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-	ierr = MatAssemblyEnd(*CE, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
 	ierr = MatDiagonalScale(*CE, maskH, maskE); CHKERRQ(ierr);
 
 	ierr = VecDestroy(&maskE); CHKERRQ(ierr);
@@ -452,16 +448,11 @@ PetscErrorCode createCH(Mat *CH, GridInfo gi)
 	ierr = MatMPIAIJSetPreallocation(*CH, 4, PETSC_NULL, 2, PETSC_NULL); CHKERRQ(ierr);
 	ierr = MatSeqAIJSetPreallocation(*CH, 4, PETSC_NULL); CHKERRQ(ierr);
 	ierr = MatSetLocalToGlobalMapping(*CH, gi.map, gi.map); CHKERRQ(ierr);
-	ierr = MatSetStencil(*CH, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
-	ierr = setCF(*CH, (GridType)((gi.ge+1) % Ngt), gi); CHKERRQ(ierr);
-	ierr = MatAssemblyBegin(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-	ierr = MatAssemblyEnd(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
-
-	ierr = MatDiagonalScale(*CH, maskE, maskH); CHKERRQ(ierr);
 */
 	// Replace all MatCreate setup with DMCreateMatrix
 	ierr = DMCreateMatrix(gi.da, CH); CHKERRQ(ierr);
-	ierr = MatSetStencil(*CH, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
+
+	// ierr = MatSetStencil(*CH, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
 	ierr = setCF(*CH, (GridType)((gi.ge+1) % Ngt), gi); CHKERRQ(ierr); // copied 
 	ierr = MatAssemblyBegin(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
@@ -528,7 +519,7 @@ PetscErrorCode createCGF(Mat *CGF, Mat CG, Mat GF, GridInfo gi)
 	/** Set up the matrix CHE. */
 	/** Below, we use 15.0 instead of 13.0, because some row has explicit zeros, which
 	  take memories as if they are nonzeros. */
-	ierr = MatMatMult(CG, GF, MAT_INITIAL_MATRIX, 13.0/(4.0+4.0), CGF); CHKERRQ(ierr); // CGF = CG*(invMu or invEps)*CF
+	ierr = MatMatMult(CG, GF, MAT_INITIAL_MATRIX, 15.0 / (4.0 + 4.0), CGF); CHKERRQ(ierr); // CGF = CG*(invMu or invEps)*CF
 	//ierr = MatMatMult(CH, HE, MAT_INITIAL_MATRIX, PETSC_DEFAULT, CHE); CHKERRQ(ierr); // CHE = CH*invMu*CE
 
 	PetscFunctionReturn(0);
@@ -956,12 +947,15 @@ PetscErrorCode createGDsym(Mat *GD, GridInfo gi)
 	if (gi.has_mu) {
 		ierr = createVecPETSc(&muNode, "mu_node", gi); CHKERRQ(ierr);
 	} else {
-		ierr = VecDuplicate(gi.vecTemp, &muNode); CHKERRQ(ierr);
+		// ierr = VecDuplicate(gi.vecTemp, &muNode); CHKERRQ(ierr);
+		ierr = DMCreateGlobalVector(gi.da, &muNode); CHKERRQ(ierr);
 		ierr = VecSet(muNode, 1.0); CHKERRQ(ierr);
 	}
 
 	/** Set up the matrix DivF and FGrad, the divergence on F and gradient operator generating F. */
-	ierr = VecDuplicate(gi.vecTemp, &invNode); CHKERRQ(ierr);
+	// ierr = VecDuplicate(gi.vecTemp, &invNode); CHKERRQ(ierr);
+	ierr = DMCreateGlobalVector(gi.da, &invNode); CHKERRQ(ierr);
+
 	ierr = VecPointwiseMult(invNode, epsNode, muNode); CHKERRQ(ierr);
 	if (gi.x_type == Etype) {
 		ierr = VecPointwiseMult(invNode, epsNode, invNode); CHKERRQ(ierr);
@@ -1160,8 +1154,6 @@ PetscErrorCode numSymmetrize(Mat A)
 	ierr = MatNorm(A_tr, NORM_INFINITY, &relerr); CHKERRQ(ierr);
 	ierr = MatDestroy(&A_tr); CHKERRQ(ierr);
 	relerr /= normA;
-	ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "\tsymmetry test: norm(A^T - A)/norm(A) = %e\n",  relerr); CHKERRQ(ierr);
-
 	PetscReal sym_tol = 1e-15;
 	if (relerr > sym_tol) SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE, "ERROR: A is not symmetric enough");
 
@@ -1268,7 +1260,7 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, ".\n"); CHKERRQ(ierr);
 	}
 
-	// ierr = VecDuplicate(gi.vecTemp, &inverse); CHKERRQ(ierr); // changed
+	// ierr = VecDuplicate(gi.vecTemp, &inverse); CHKERRQ(ierr); // changed? what does this do? 
 	ierr = DMCreateGlobalVector(gi.da, &inverse); CHKERRQ(ierr);
 
 	/** Create input vectors. */
@@ -1310,7 +1302,15 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = createCE(&CE, gi); CHKERRQ(ierr);
 	ierr = MatSetUp(CE); CHKERRQ(ierr);  // added djps
 	ierr = updateTimeStamp(VBDetail, ts, "CE matrix", gi); CHKERRQ(ierr);
-
+/*
+	ierr = MatView(CE, PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+	PetscInt global_rows, global_columns;    
+	ierr = MatGetSize(CE, &global_rows, &global_columns); CHKERRQ(ierr); 
+	ierr = PetscPrintf(PETSC_COMM_WORLD, "\tCE: global rows=%d, columns=%d\n", global_rows, global_columns); CHKERRQ(ierr);
+	PetscInt local_rows, local_columns;    
+	ierr = MatGetLocalSize(CE, &local_rows, &local_columns); CHKERRQ(ierr); // this breaks
+	ierr = PetscPrintf(PETSC_COMM_WORLD, "\tCE: local rows=%d, columns=%d\n", local_rows, local_columns); CHKERRQ(ierr);
+*/
 	/** Set up the matrix CH, the curl operator on H fields. */
 	ierr = createCH(&CH, gi); CHKERRQ(ierr);
 	ierr = MatSetUp(CH); CHKERRQ(ierr);  // added djps
@@ -1346,11 +1346,6 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = VecSet(inverse, 1.0); CHKERRQ(ierr);
 		ierr = VecPointwiseDivide(inverse, inverse, eps); CHKERRQ(ierr);
 	}
-
-	PetscInt matRows, matCols, vecSize;
-	ierr = MatGetSize(CG, &matRows, &matCols); CHKERRQ(ierr);
-	ierr = VecGetSize(inverse, &vecSize); CHKERRQ(ierr);
-	ierr = PetscPrintf(PETSC_COMM_WORLD, "Matrix: %d x %d, Vector: %d\n", matRows, matCols, vecSize); CHKERRQ(ierr);
 
 	ierr = MatDiagonalScale(CG, PETSC_NULL, inverse); CHKERRQ(ierr); // breaks?
 	ierr = updateTimeStamp(VBDetail, ts, "CG matrix", gi); CHKERRQ(ierr);
@@ -1405,8 +1400,10 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 		/** Create b. */
 		Vec b_aug;
+
 		// ierr = VecDuplicate(gi.vecTemp, &b_aug); CHKERRQ(ierr);
 		ierr = DMCreateGlobalVector(gi.da, &b_aug); CHKERRQ(ierr);
+
 		if (gi.x_type == Etype) {
 			ierr = VecCopy(srcJ, b_aug); CHKERRQ(ierr);  // b_aug = J
 		} else {
@@ -1434,14 +1431,19 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = updateTimeStamp(VBDetail, ts, "A matrix", gi); CHKERRQ(ierr);
 
 	/** Create the left and right preconditioner. */
+
 	/** Set the left preconditioner. */
+
 	// ierr = VecDuplicate(gi.vecTemp, &left_precond); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(gi.da, &left_precond); CHKERRQ(ierr);
+
 	ierr = VecSet(left_precond, 1.0); CHKERRQ(ierr);
 
 	/** Set the right preconditioner. */
+
 	// ierr = VecDuplicate(gi.vecTemp, right_precond); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(gi.da, right_precond); CHKERRQ(ierr);
+
 	ierr = VecSet(*right_precond, 1.0); CHKERRQ(ierr);
 
 	if (gi.is_symmetric) {  // currently, is_symmetric only works for x_type == Etype
@@ -1493,9 +1495,10 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 			ierr = VecPointwiseDivide(*right_precond, *right_precond, sfactorL); CHKERRQ(ierr);
 		} else {  // diag(sqrt(sfactorL/sfactorS)) Aupml diag(sqrt(sfactorL/sfactorS))
 			Vec sqrtLoverS;
+			
 			// ierr = VecDuplicate(gi.vecTemp, &sqrtLoverS); CHKERRQ(ierr);
-
 			ierr = DMCreateGlobalVector(gi.da, &sqrtLoverS); CHKERRQ(ierr);
+
 			ierr = VecPointwiseDivide(sqrtLoverS, sfactorL, sfactorS); CHKERRQ(ierr);
 			ierr = sqrtVec(sqrtLoverS, gi); CHKERRQ(ierr);
 			ierr = VecPointwiseDivide(left_precond, left_precond, sqrtLoverS); CHKERRQ(ierr);
@@ -1514,8 +1517,10 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 			if (gi.has_mu) {
 				ierr = createVecHDF5(&precond, "/mu", gi); CHKERRQ(ierr);
 			} else {
+				
 				// ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
 				ierr = DMCreateGlobalVector(gi.da, &precond); CHKERRQ(ierr);
+
 				ierr = VecSet(precond, 1.0); CHKERRQ(ierr);
 			}
 		}
@@ -1529,8 +1534,10 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 		ierr = VecDestroy(&precond); CHKERRQ(ierr);
 		ierr = updateTimeStamp(VBDetail, ts, "eps preconditioner", gi); CHKERRQ(ierr);
 	} else if (gi.pc_type == PCJacobi) {
+
 		// ierr = VecDuplicate(gi.vecTemp, &precond); CHKERRQ(ierr);
 		ierr = DMCreateGlobalVector(gi.da, &precond); CHKERRQ(ierr);
+		
 		ierr = MatGetDiagonal(*A, precond); CHKERRQ(ierr);
 		if (!gi.is_symmetric) {
 			ierr = VecPointwiseMult(left_precond, left_precond, precond); CHKERRQ(ierr);
@@ -1549,11 +1556,13 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 
 	// ierr = VecDuplicate(gi.vecTemp, &inv_left); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(gi.da, &inv_left); CHKERRQ(ierr);
+
 	ierr = VecSet(inv_left, 1.0); CHKERRQ(ierr);
 	ierr = VecPointwiseDivide(inv_left, inv_left, left_precond); CHKERRQ(ierr);
 
 	// ierr = VecDuplicate(gi.vecTemp, &inv_right); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(gi.da, &inv_right); CHKERRQ(ierr);
+
 	ierr = VecSet(inv_right, 1.0); CHKERRQ(ierr);
 	ierr = VecPointwiseDivide(inv_right, inv_right, *right_precond); CHKERRQ(ierr);
 
@@ -1569,6 +1578,7 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	}
 
 	ierr = MatDestroy(&CG); CHKERRQ(ierr);
+
 	ierr = VecDestroy(&mu); CHKERRQ(ierr);
 	ierr = VecDestroy(&eps); CHKERRQ(ierr);
 	ierr = VecDestroy(&param); CHKERRQ(ierr);
@@ -1581,6 +1591,9 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	PetscBool flgBloch;
 	ierr = hasBloch(&flgBloch, gi); CHKERRQ(ierr);
 	if (gi.is_symmetric && !flgBloch) {
+
+		// MatView(*A, PETSC_VIEWER_STDOUT_WORLD);
+
 		ierr = numSymmetrize(*A); CHKERRQ(ierr);
 		ierr = MatSetOption(*A, MAT_SYMMETRIC, PETSC_TRUE); CHKERRQ(ierr);
 		ierr = MatSetOption(*A, MAT_HERMITIAN, PETSC_FALSE); CHKERRQ(ierr);

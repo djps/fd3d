@@ -71,7 +71,7 @@ PetscErrorCode setGridInfo(GridInfo *gi)
 	ierr = h5get_data(inputfile_id, "/e_ikL", H5T_NATIVE_DOUBLE, e_ikL); CHKERRQ(ierr);
 	ierr = ri2c(e_ikL, gi->exp_neg_ikL, Naxis); CHKERRQ(ierr);
 
-ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "\tN = [%d, %d, %d]\n", gi->N[Xx], gi->N[Yy], gi->N[Zz]); CHKERRQ(ierr);
+	ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "\tN = [%d, %d, %d]\n", gi->N[Xx], gi->N[Yy], gi->N[Zz]); CHKERRQ(ierr);
 
 	/** Import values defined in the input file. */
 /*
@@ -145,6 +145,19 @@ ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "\tN = [%d, %d, %d]\n", gi->N[Xx],
 	/** Create a template vector.  Other vectors are created to have duplicate
 	  structure of this. */
 	ierr = DMCreateGlobalVector(gi->da, &gi->vecTemp); CHKERRQ(ierr);
+
+    // PetscInt size_temp, local_temp;
+    // ierr = VecGetSize(gi->vecTemp, &size_temp); CHKERRQ(ierr); // this breaks
+    // ierr = VecGetLocalSize(gi->vecTemp, &local_temp); CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_WORLD, "=== Vector Compatibility Check ===\n"); CHKERRQ(ierr);
+    // ierr = PetscPrintf(PETSC_COMM_WORLD, "gi.vecTemp:  global=%d, local=%d\n", size_temp, local_temp); CHKERRQ(ierr);
+
+
+
+
+
+
+
 
 	/** Add a setup */
 	ierr = DMSetUp(gi->da); CHKERRQ(ierr);
@@ -405,6 +418,8 @@ PetscErrorCode setOptions(GridInfo *gi)
 	ierr = PetscOptionsGetInt(PETSC_NULL, PETSC_NULL, opt_name, (PetscInt*) &gi->verbose_level, &has_opt_val); CHKERRQ(ierr);
 	if (!has_opt_val) {
 		gi->verbose_level = VBDetail;
+		ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "Debug oputput is %s; proceed with the default value.\n", has_opt_val ? "true" : "false"); CHKERRQ(ierr);
+		ierr = PetscFPrintf(PETSC_COMM_WORLD, stdout, "Debug level is %i; proceed with the default value.\n", gi->verbose_level); CHKERRQ(ierr);
 	}
 
 	/** Output the norms of relative residual vectors */
