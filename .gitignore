@@ -1,6 +1,21 @@
-TODO
-*~
-*.o
-*.swp
+# python file
 *.pyc
+
+# Build artifacts
+*.o
+*.a
+bin/fd3d
+
+# Test/output files
+test/*.E.h5
+test/*.H.h5
+
+# Editor files
+*~
+*.swp
+.vscode/
+.idea/
+
+# OS files
 .DS_Store
+Thumbs.db

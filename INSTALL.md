@@ -1,13 +1,16 @@
 FD3D installation instruction
 =============================
 
+> [!IMPORTANT]
+This is a update from the original code. It now works with petsc-3.16, rather than 3.6 (which used python2). But at present only one of the tests from MaxwellFDFD has been tested.
+
 System requirements
 -------------------
 - Operating system
 
 	UNIX-like operating system (e.g., LINUX or OS X)
 
-- [PETSc](http://www.mcs.anl.gov/petsc) (version 3.5 or higher)
+- [PETSc](http://www.mcs.anl.gov/petsc) (This has been tested on 3.16)
 
 - [MaxwellFDFD](https://github.com/wsshin/maxwellfdfd)
 
