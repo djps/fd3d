@@ -63,9 +63,11 @@ PetscErrorCode setDp(Mat A, Sign s, Axis w, PetscInt i, PetscInt j, PetscInt k, 
 
 	/** Two matrix elements in a single row to be set at once. */
 	if (s == Pos) {
-		dFp[0] = -scale/dv; dFp[1] = scale/dv;  // forward difference
+		dFp[0] = -scale / dv; 
+		dFp[1] = scale / dv;  // forward difference
 	} else {
-		dFp[0] = scale/dv; dFp[1] = -scale/dv;  // backward difference
+		dFp[0] = scale / dv; 
+		dFp[1] = -scale / dv;  // backward difference
 	}
 
 	/** Handle boundary conditions. */
@@ -464,7 +466,7 @@ PetscErrorCode createCH(Mat *CH, GridInfo gi)
 	ierr = MatAssemblyBegin(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(*CH, MAT_FINAL_ASSEMBLY); CHKERRQ(ierr);
 
-	ierr = MatDiagonalScale(*CH, maskH, maskE); CHKERRQ(ierr);
+	ierr = MatDiagonalScale(*CH, maskE, maskH); CHKERRQ(ierr);
 
 	ierr = VecDestroy(&maskE); CHKERRQ(ierr);
 	ierr = VecDestroy(&maskH); CHKERRQ(ierr);
@@ -479,7 +481,6 @@ PetscErrorCode createCH(Mat *CH, GridInfo gi)
  * -------
  * Create the matrix CGF, the curl((mu or eps)^-1 curl) operator on E- or H-fields.
  */
-
 PetscErrorCode createCGF(Mat *CGF, Mat CG, Mat GF, GridInfo gi)
 {
 	PetscFunctionBegin;
@@ -573,8 +574,13 @@ Therefore, if Gq==Ey, then Fp==Ex and dr==dx, and so on. */
 		PetscInt coordFw[3];  // coordinate of an input field component
 
 		/** Fw[0]: the same as the output field component */
-		coordFw[Xx] = i; coordFw[Yy] = j; coordFw[Zz] = k;
-		indFw[0].i = coordFw[Xx]; indFw[0].j = coordFw[Yy]; indFw[0].k = coordFw[Zz]; indFw[0].c = Pp;
+		coordFw[Xx] = i; 
+		coordFw[Yy] = j; 
+		coordFw[Zz] = k;
+		indFw[0].i = coordFw[Xx]; 
+		indFw[0].j = coordFw[Yy]; 
+		indFw[0].k = coordFw[Zz]; 
+		indFw[0].c = Pp;
 
 		/** Fw[1~2]: Fp at (p,q,r) = (p+-1,q,r) */
 		coordFw[Xx] = i; coordFw[Yy] = j; coordFw[Zz] = k;
@@ -1147,7 +1153,7 @@ PetscErrorCode numSymmetrize(Mat A)
 	Mat A_tr;
 	ierr = MatTranspose(A, MAT_INITIAL_MATRIX, &A_tr); CHKERRQ(ierr);
 	ierr = MatAXPY(A_tr, -1.0, A, SAME_NONZERO_PATTERN); CHKERRQ(ierr);
-	//ierr = MatAXPY(A_tr, -1.0, A, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
+	// ierr = MatAXPY(A_tr, -1.0, A, DIFFERENT_NONZERO_PATTERN); CHKERRQ(ierr);
 
 	PetscReal normA, relerr;
 	ierr = MatNorm(A, NORM_INFINITY, &normA); CHKERRQ(ierr);
@@ -1266,9 +1272,7 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = DMCreateGlobalVector(gi.da, &inverse); CHKERRQ(ierr);
 
 	/** Create input vectors. */
-	// ierr = createVecPETSc(&eps, "eps", gi); CHKERRQ(ierr);
-
-	ierr = DMCreateGlobalVector(gi.da, &eps); CHKERRQ(ierr);
+	ierr = createVecPETSc(&eps, "eps", gi); CHKERRQ(ierr);
 	ierr = updateTimeStamp(VBDetail, ts, "eps vector", gi); CHKERRQ(ierr);
 
 	if (gi.has_mu) {
@@ -1542,6 +1546,7 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	}
 
 	Vec inv_left, inv_right; 
+
 	// ierr = VecDuplicate(gi.vecTemp, &inv_left); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(gi.da, &inv_left); CHKERRQ(ierr);
 	ierr = VecSet(inv_left, 1.0); CHKERRQ(ierr);
