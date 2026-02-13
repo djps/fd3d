@@ -516,11 +516,49 @@ PetscErrorCode createCGF(Mat *CGF, Mat CG, Mat GF, GridInfo gi)
 	   ierr = MatSetStencil(*CHE, Naxis, gi.Nlocal_g, gi.start_g, Naxis); CHKERRQ(ierr);
 	 */
 
+
+
+	PetscInt m_CG, n_CG, m_GF, n_GF;
+	ierr = MatGetSize(CG, &m_CG, &n_CG); CHKERRQ(ierr);
+	ierr = MatGetSize(GF, &m_GF, &n_GF); CHKERRQ(ierr);
+	ierr = PetscPrintf(PETSC_COMM_WORLD, 
+					"MatMatMult: CG(%dx%d) * GF(%dx%d)\n", 
+					m_CG, n_CG, m_GF, n_GF); CHKERRQ(ierr);
+
+	// Check they're compatible
+	if (n_CG != m_GF) {
+		SETERRQ2(PETSC_COMM_WORLD, PETSC_ERR_ARG_INCOMP,
+				"Matrix dimensions incompatible: CG cols=%D != GF rows=%D", 
+				n_CG, m_GF);
+	}
+
+	// Check matrices are assembled
+	PetscBool assembled_CG, assembled_GF;
+	ierr = MatAssembled(CG, &assembled_CG); CHKERRQ(ierr);
+	ierr = MatAssembled(GF, &assembled_GF); CHKERRQ(ierr);
+	ierr = PetscPrintf(PETSC_COMM_WORLD, 
+					"CG assembled: %s, GF assembled: %s\n",
+					assembled_CG ? "YES" : "NO",
+					assembled_GF ? "YES" : "NO"); CHKERRQ(ierr);
+
+	// Estimate memory needed
+	PetscInt nnz_CG, nnz_GF;
+	MatInfo info_CG, info_GF;
+	MatGetInfo(CG, MAT_GLOBAL_SUM, &info_CG);
+	MatGetInfo(GF, MAT_GLOBAL_SUM, &info_GF);
+	ierr = PetscPrintf(PETSC_COMM_WORLD,
+					"CG nnz: %g, GF nnz: %g\n",
+					info_CG.nz_used, info_GF.nz_used); CHKERRQ(ierr);
+
 	/** Set up the matrix CHE. */
+	ierr = PetscPrintf(PETSC_COMM_WORLD, "Starting MatMatMult...\n"); CHKERRQ(ierr);
+
 	/** Below, we use 15.0 instead of 13.0, because some row has explicit zeros, which
 	  take memories as if they are nonzeros. */
-	ierr = MatMatMult(CG, GF, MAT_INITIAL_MATRIX, 15.0 / (4.0 + 4.0), CGF); CHKERRQ(ierr); // CGF = CG*(invMu or invEps)*CF
+	ierr = MatMatMult(CG, GF, MAT_INITIAL_MATRIX, 13.0 / (4.0 + 4.0), CGF); CHKERRQ(ierr); // CGF = CG*(invMu or invEps)*CF
 	//ierr = MatMatMult(CH, HE, MAT_INITIAL_MATRIX, PETSC_DEFAULT, CHE); CHKERRQ(ierr); // CHE = CH*invMu*CE
+
+	ierr = PetscPrintf(PETSC_COMM_WORLD, "MatMatMult completed!\n"); CHKERRQ(ierr);
 
 	PetscFunctionReturn(0);
 }
@@ -1351,11 +1389,15 @@ PetscErrorCode create_A_and_b4(Mat *A, Vec *b, Vec *right_precond, Mat *CF, Vec 
 	ierr = updateTimeStamp(VBDetail, ts, "CG matrix", gi); CHKERRQ(ierr);
 
 	ierr = VecCopy(param, paramMask); CHKERRQ(ierr);
+	ierr = updateTimeStamp(VBDetail, ts, "VecCopy", gi); CHKERRQ(ierr);
 	ierr = infMaskVec(paramMask, gi); CHKERRQ(ierr);  // to handle TruePEC objects
+	ierr = updateTimeStamp(VBDetail, ts, "infMaskVec", gi); CHKERRQ(ierr);
 	ierr = maskInf2One(param, gi); CHKERRQ(ierr);  // to handle TruePEC objects
+	ierr = updateTimeStamp(VBDetail, ts, "maskInf2One", gi); CHKERRQ(ierr);
 
 	/** Create the matrix CGF, the curl(mu^-1 curl) operator or curl(eps^-1 curl). */
 	ierr = createCGF(&CGF, CG, *CF, gi); CHKERRQ(ierr);
+	ierr = updateTimeStamp(VBDetail, ts, "createCGF", gi); CHKERRQ(ierr);
 	ierr = MatSetUp(CGF); CHKERRQ(ierr);  // added djps
 	ierr = updateTimeStamp(VBDetail, ts, "CGF matrix", gi); CHKERRQ(ierr);
 
